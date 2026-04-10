@@ -18,21 +18,15 @@ class LoggingManager:
     
     def setup_logging(self):
         handlers = [logging.StreamHandler()]
-        if not self.is_vercel:
-            try:
-                handlers.append(logging.FileHandler('web_ui.log'))
-            except OSError as e:
-                print(f"Warning: Could not create log file: {str(e)}", file=sys.stderr)
         
+        # Suppress spammy loggers but allow warning/error
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=logging.WARNING,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=handlers
         )
         self.logger = logging.getLogger('web_ui')
-        
-        if self.is_vercel:
-            self.logger.info("Running in Vercel environment, file logging disabled")
+        self.logger.setLevel(logging.INFO)  # Keep web_ui outputting INFO log
     
     def get_logger(self):
         return self.logger

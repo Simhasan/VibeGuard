@@ -1,0 +1,7 @@
+{
+  "provider": "ollama",
+  "model": "mistral",
+  "ollama_url": "http://localhost:11434",
+  "scope": "url",
+  "verbose": false
+}

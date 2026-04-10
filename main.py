@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -43,8 +44,17 @@ def main():
             args.model = default_ollama_model
     
     # Prepare output directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.join(args.output, f"{args.url.replace('://', '_').replace('/', '_')}_{timestamp}")
+    # If the output directory already exists (created by scan_controller), use it directly
+    if os.path.isdir(args.output):
+        output_dir = args.output
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Sanitize URL: replace all non-alphanumeric chars (except _ and -) with _
+        safe_url = re.sub(r'[^a-zA-Z0-9_\-]', '_', args.url)
+        # Collapse multiple underscores and trim length for Windows path limits
+        safe_url = re.sub(r'_+', '_', safe_url).strip('_')[:80]
+        output_dir = os.path.join(args.output, f"{safe_url}_{timestamp}")
+    
     os.makedirs(output_dir, exist_ok=True)
     
     # Initialize and run swarm coordinator

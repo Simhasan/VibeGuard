@@ -180,23 +180,20 @@ class ScanController:
             
             if activity and activity_callback:
                 try:
-                    # Check the expected signature of the callback
-                    import inspect
-                    sig = inspect.signature(activity_callback)
-                    param_count = len(sig.parameters)
+                    activity_type = activity.get('type', 'general')
+                    description = activity.get('description', 'Activity')
+                    details = activity.get('details', {})
+                    agent_name = activity.get('agent', None)
                     
-                    if param_count == 2:
-                        # It's probably expecting (session_id, activity)
-                        activity_callback(session_id, activity)
-                    elif param_count == 5:
-                        # It's probably ActivityTracker.add_activity
-                        activity_type = activity.get('type', 'general')
-                        description = activity.get('description', 'Activity')
-                        details = activity.get('details', {})
-                        agent_name = activity.get('agent', None)
-                        activity_callback(session_id, activity_type, description, details, agent_name)
-                    else:
-                        self.logger.warning(f"Unknown activity callback signature with {param_count} parameters")
+                    try:
+                        # Try the expected signature for ActivityTracker.add_activity
+                        activity_callback(session_id, activity_type, description, details=details, agent_name=agent_name)
+                    except TypeError as e:
+                        # Fallback in case of a different signature
+                        if "positional argument" in str(e) or "unexpected keyword" in str(e):
+                            activity_callback(session_id, activity)
+                        else:
+                            raise
                 except Exception as e:
                     self.logger.error(f"Error calling activity callback: {str(e)}")
         
@@ -219,7 +216,7 @@ class ScanController:
             
             # Setup command to run the scanner
             cmd = [
-                'venv\Scripts\python', 'main.py',
+                'venv\\Scripts\\python', '-u', 'main.py',
                 '--url', url,
                 '--output', os.path.join(self.report_manager.upload_folder, report_dir)
             ]
@@ -243,14 +240,23 @@ class ScanController:
             # Log the command we're about to run
             self.logger.info(f"Executing command: {' '.join(cmd)}")
             
+            # Prepare environment variables
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            if config.get('openai_api_key'):
+                env['OPENAI_API_KEY'] = config.get('openai_api_key')
+            if config.get('anthropic_api_key'):
+                env['ANTHROPIC_API_KEY'] = config.get('anthropic_api_key')
+            
             try:
                 # Execute the scan process
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,  # Merge stderr into stdout to prevent pipe deadlocks
                     universal_newlines=True,
-                    bufsize=1
+                    bufsize=1,
+                    env=env
                 )
                 
                 # Monitor progress from process output
@@ -430,6 +436,10 @@ class ScanController:
                 elif 'ERROR:' in line:
                     last_error = line.strip()
                     self.logger.error(f"Scanner process error: {last_error}")
+                
+                # If it's a standard log line from the agent, print it out so the user sees agent info
+                else:
+                    self.logger.info(line.strip())
             
             # Read any remaining output and errors
             remaining_output, errors = process.communicate()

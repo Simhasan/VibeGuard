@@ -46,9 +46,13 @@ const TopBar = () => {
       })
       const data = await res.json()
       console.log('Scan response:', data)  // ← add this
-      const scan_id = data.data.scan_id
-      setActiveScanId(scan_id)
-      pollScanStatus(scan_id)
+      const scan_id = data.scan_id || (data.data && data.data.scan_id)
+      if (scan_id) {
+        setActiveScanId(scan_id)
+        pollScanStatus(scan_id)
+      } else {
+        throw new Error('No scan_id received from server')
+      }
     } catch (err) {
       console.error('Scan failed:', err)
       setScanStatus('idle')
@@ -62,10 +66,10 @@ const TopBar = () => {
         const res = await fetch('http://localhost:5050/api/scan/status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scan_id: scanId })
+          body: JSON.stringify({ scan_id: scanId, session_id: sessionId })
         })
         const data = await res.json()
-        const scan = data.data?.scan
+        const scan = data.scan || data.data?.scan
 
         if (scan) {
           setScanProgress(scan.progress || 0)
@@ -83,8 +87,9 @@ const TopBar = () => {
             if (scan.report_dir) {
               const reportRes = await fetch(`http://localhost:5050/api/report/${scan.report_dir}`)
               const reportData = await reportRes.json()
-              if (reportData.data?.findings) {
-                setFindings(reportData.data.findings)
+              const findings = reportData.findings || reportData.data?.findings
+              if (findings) {
+                setFindings(findings)
               }
             }
           }

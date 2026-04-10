@@ -32,12 +32,8 @@ def register_routes(app, session_manager, scan_controller, activity_tracker):
         url = normalize_url(url)
         
         # Create an adapter for the activity tracker callback
-        def activity_adapter(session_id, activity):
-            activity_type = activity.get('type', 'general')
-            description = activity.get('description', 'Activity')
-            details = activity.get('details', {})
-            agent_name = activity.get('agent', None)
-            return activity_tracker.add_activity(session_id, activity_type, description, details, agent_name)
+        def activity_adapter(*args, **kwargs):
+            return activity_tracker.add_activity(*args, **kwargs)
             
         # Start the scan
         scan_id = scan_controller.start_scan(
@@ -161,12 +157,8 @@ def register_routes(app, session_manager, scan_controller, activity_tracker):
         logger.info(f"Starting scan for URL {url} with session {session_id} and config {config}")
         
         # Create an adapter for the activity tracker callback
-        def activity_adapter(session_id, activity):
-            activity_type = activity.get('type', 'general')
-            description = activity.get('description', 'Activity')
-            details = activity.get('details', {})
-            agent_name = activity.get('agent', None)
-            return activity_tracker.add_activity(session_id, activity_type, description, details, agent_name)
+        def activity_adapter(*args, **kwargs):
+            return activity_tracker.add_activity(*args, **kwargs)
             
         scan_id = scan_controller.start_scan(
             session_id, url, config, 
